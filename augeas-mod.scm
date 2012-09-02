@@ -27,9 +27,12 @@
                     (let ((tmp e0)) e1 ... tmp))))
 
 (define-record augeas ptr)
-(define-foreign-type augeas (c-pointer "augeas") (lambda (a) (augeas-ptr a)))
+(define-foreign-type augeas (c-pointer "augeas")
+  (lambda (a) (or (augeas-ptr a)
+             (error 'augeus "operation on closed handle"))))
 
 (define _aug_init (foreign-lambda (c-pointer "augeas") aug_init c-string c-string int))
+(define _aug_close (foreign-lambda void aug_close augeas))
 (define _aug_get (foreign-lambda int aug_get augeas c-string (c-pointer c-string)))
 (define _aug_set (foreign-lambda int aug_set augeas c-string c-string))
 (define _aug_setm (foreign-lambda int aug_setm augeas c-string c-string c-string))
@@ -43,6 +46,11 @@
 (define (aug-init #!key root loadpath (flags 0))
   (make-augeas (or (_aug_init root loadpath flags)
                    (error 'aug-init "initialization failed"))))
+(define (aug-close a)        ;; safe to call this multiple times
+  (when (augeas-ptr a)
+    (_aug_close a)
+    (augeas-ptr-set! a #f))
+  (void))
 (define (aug-get a path)
   (let-location ((v c-string))
     (let ((rc (_aug_get a path #$v)))

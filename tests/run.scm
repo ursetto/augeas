@@ -75,3 +75,14 @@
        (aug-remove! a "/files/etc/hosts/*/test"))
  (test "verify non-existence" '()
        (aug-match a "/files/etc/hosts/*/test")))
+
+(test-group
+ "close"
+ (test "verify handle is open" #t
+       (aug-exists? a "/files/etc/hosts/1/ipaddr"))
+ (test-assert "close handle"             ;; return val unspecified, in practice void
+              (aug-close a))
+ (test-assert "duplicate close ignored"  ;; return val unspecified, in practice void
+              (aug-close a))
+ (test-error "error: operation on closed handle"
+             (aug-exists? a "/files/etc/hosts/1/ipaddr")))
