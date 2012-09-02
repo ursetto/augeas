@@ -1,6 +1,60 @@
 (use test)
 
-(test "get" "127.0.0.1" (aug-get a "/files/etc/hosts/1/ipaddr"))
+(test-group
+ "exists"
+ (test "existent" #t
+       (aug-exists? a "/files/etc/hosts/1/ipaddr"))
+ (test "existent node with no value" #t
+       (aug-exists? a "/files/etc/hosts/1"))
+ (test "non-existent" #f
+       (aug-exists? a "/files/etc/hosts/1/ipadd")))
+
+(test-group
+ "get"
+ (test "get hosts/ipaddr" "127.0.0.1" (aug-get a "/files/etc/hosts/1/ipaddr"))
+ (test "get missing node" #f (aug-get a "/files/etc/hosts/1/missing"))
+ (test-error "get too many matches" (aug-get a "/files/etc/hosts//alias"))
+ (test-error "get invalid path expression" (aug-get a "/files/etc/hosts/alias[")))
+
+(test-group
+ "set"
+ ;; rm ipaddr node, or reload
+ (test "assert nonexistent" #f
+       (aug-get a "/files/etc/hosts/01/ipaddr"))
+ (test "set!" (void)
+       (aug-set! a "/files/etc/hosts/01/ipaddr" "192.168.5.4"))
+ (test "get" "192.168.5.4"
+       (aug-get a "/files/etc/hosts/01/ipaddr"))
+ (test-error "set! > 1 match"
+             (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5")))
+
+(test-group
+ "rm"
+ (let ((p "/files/etc/hosts/01/ipaddr")
+       (v "192.168.5.4"))
+   (test "set!" (void) (aug-set! a p v))
+   (test "assert get" v (aug-get a p))
+   (test "rm" 1 (aug-remove! a "/files/etc/hosts/01/ipaddr"))
+   (test "assert get missing" #f (aug-get a p))))
+
+;; FIXME: match would be better here
+(test-group
+ "set multiple, rm multiple"
+ (test "set multiple" 3          ;; 3 because 1 and 2 are in file, and we added 01 above
+       (aug-set-multiple! a "/files/etc/hosts/*[label() != '#comment']"
+                          "test" "foo"))
+ (test "verify one get" "foo"
+       (aug-get a "/files/etc/hosts/1/test"))
+ (test "rm multiple" 3
+       (aug-remove! a "/files/etc/hosts/*/test"))
+ (test "verify non-existent" #f
+       (aug-exists? a "/files/etc/hosts/1/test")))
+
+;; NO TEST FOR aug-set-multiple!
+
+
+
+;; Note: errors contain info, we should check against expected error type:
 
 #|
 
