@@ -2,6 +2,24 @@
 
 ;; todo: return proper error enum symbol
 
+(use foreigners)
+
+(define-foreign-enum-type (augeus:errcode int 'unknown)
+  (errcode->int int->errcode)
+  ((nomem) AUG_ENOMEM)          ;; Out of memory
+  ((internal) AUG_EINTERNAL)    ;; Internal error (bug)
+  ((pathx) AUG_EPATHX)          ;; Invalid path expression
+  ((nomatch) AUG_ENOMATCH)      ;; No match for path expression
+  ((mmatch) AUG_EMMATCH)        ;; Too many matches for path expression
+  ((syntax) AUG_ESYNTAX)        ;; Syntax error in lens file
+  ((nolens) AUG_ENOLENS)        ;; Lens lookup failed
+  ((mxfm) AUG_EMXFM)            ;; Multiple transforms
+  ((nospan) AUG_ENOSPAN)        ;; No span for this node
+  ((mvdesc) AUG_EMVDESC)        ;; Cannot move node into its descendant
+  ((cmdrun) AUG_ECMDRUN)        ;; Failed to execute command
+  ((badarg) AUG_EBADARG)        ;; Invalid argument in function call
+  ((label) AUG_ELABEL) )        ;; Invalid label
+
 (use lolevel) ;; free
 
 (define-syntax begin0                 ; multiple values discarded
@@ -81,5 +99,5 @@
                              'message (_aug_error_message a)
                              'minor-message (_aug_error_minor_message a)
                              'details (_aug_error_details a))
-    (make-property-condition 'unknown))))
+    (make-property-condition (int->errcode (_aug_error a))))))
 

@@ -1,5 +1,11 @@
 (use test augeas)
 
+(define-syntax expect-error    ;; return #t on augeas error code, else throw error
+  (syntax-rules ()
+    ((_ code e0 e1 ...)
+     (condition-case (begin e0 e1 ...)
+                     ((exn augeas code) #t)))))
+
 (define a (aug-init root: "../sandbox"))
 
 (test-group
@@ -15,8 +21,10 @@
  "get"
  (test "get hosts/ipaddr" "127.0.0.1" (aug-get a "/files/etc/hosts/1/ipaddr"))
  (test "get missing node" #f (aug-get a "/files/etc/hosts/1/missing"))
- (test-error "get too many matches" (aug-get a "/files/etc/hosts//alias"))
- (test-error "get invalid path expression" (aug-get a "/files/etc/hosts/alias[")))
+ (test "get too many matches" #t
+       (expect-error mmatch (aug-get a "/files/etc/hosts//alias")))
+ (test "get invalid path expression" #t
+       (expect-error pathx (aug-get a "/files/etc/hosts/alias["))))
 
 (test-group
  "match"
@@ -40,8 +48,9 @@
        (aug-set! a "/files/etc/hosts/01/ipaddr" "192.168.5.4"))
  (test "get" "192.168.5.4"
        (aug-get a "/files/etc/hosts/01/ipaddr"))
- (test-error "set! > 1 match"
-             (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5")))
+ (test "set! > 1 match" #t
+       (expect-error mmatch
+                     (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5"))))
 
 
 (test-group
@@ -66,39 +75,3 @@
        (aug-remove! a "/files/etc/hosts/*/test"))
  (test "verify non-existence" '()
        (aug-match a "/files/etc/hosts/*/test")))
-
-;; Note: errors contain info, we should check against expected error type:
-
-#|
-
-#;76> (aug-get a "/files/etc/hosts//alias")
-Error: (aug-get) Too many matches for path expression: "/files/etc/hosts//alias"
-#;76> ,exn
-condition: (exn augeas unknown)
- exn
-	location: aug-get
-	message: "Too many matches for path expression"
-	arguments: ("/files/etc/hosts//alias")
- augeas
-	code: 5
-	message: "Too many matches for path expression"
-	minor-message: #f
-	details: "There are 4 nodes matching /files/etc/hosts//alias"
- unknown
-
-#;77> (aug-get a "/files/etc/hosts/alias[")
-Error: (aug-get) Invalid path expression: "/files/etc/hosts/alias["
-#;77> ,exn
-condition: (exn augeas unknown)
- exn
-	location: aug-get
-	message: "Invalid path expression"
-	arguments: ("/files/etc/hosts/alias[")
- augeas
-	code: 3
-	message: "Invalid path expression"
-	minor-message: "illegal string literal"
-	details: "/files/etc/hosts/alias[|=|"
- unknown
-
-|#
