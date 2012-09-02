@@ -1,9 +1,9 @@
 ;; -*- scheme -*-
 
 ;; Relies on pkg-config because augeas depends on libxml2 (even if you are not using it).
-;; (setenv "PKG_CONFIG_PATH" "/Users/jim/local/lib/pkgconfig")
 
-(use posix srfi-13)
+(use posix srfi-13 files)
+(setenv "PKG_CONFIG_PATH" (normalize-pathname "~/local/lib/pkgconfig"))
 
 (define pkg-config-version
   (with-input-from-pipe "pkg-config --version" read-line))
