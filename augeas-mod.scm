@@ -1,8 +1,10 @@
 #> #include <augeas.h> <#
 
-;; todo: init flags; load; save; defvar; defnode; srun; rename; span (?); transform (?)
+;; todo: init flags; save; mv; defvar; defnode; srun; rename; span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
+;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
+;;       for string ports for both aug_print and aug_srun.  has been available since 0.2.0 (2008-06)
 
 (use foreigners)
 
