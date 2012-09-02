@@ -1,4 +1,4 @@
-(use test)
+(use test augeas)
 
 (test-group
  "exists"
@@ -29,6 +29,12 @@
              (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5")))
 
 (test-group
+ "match"
+ (test "match count" 2
+       (aug-match-count a "/files/etc/hosts/*/ipaddr"))   ; hosts/1 and hosts/2
+ )
+
+(test-group
  "rm"
  (let ((p "/files/etc/hosts/01/ipaddr")
        (v "192.168.5.4"))
@@ -49,9 +55,6 @@
        (aug-remove! a "/files/etc/hosts/*/test"))
  (test "verify non-existent" #f
        (aug-exists? a "/files/etc/hosts/1/test")))
-
-;; NO TEST FOR aug-set-multiple!
-
 
 
 ;; Note: errors contain info, we should check against expected error type:

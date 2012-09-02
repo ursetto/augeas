@@ -8,6 +8,7 @@
 (define _aug_set (foreign-lambda int aug_set augeas c-string c-string))
 (define _aug_setm (foreign-lambda int aug_setm augeas c-string c-string c-string))
 (define _aug_rm (foreign-lambda int aug_rm augeas c-string))
+(define _aug_match (foreign-lambda int aug_match augeas c-string (c-pointer (c-pointer c-string))))
 (define _aug_error (foreign-lambda int aug_error augeas))  ;; error code
 (define _aug_error_message (foreign-lambda c-string aug_error_message augeas))  ;; human-readable error
 (define _aug_error_minor_message (foreign-lambda c-string aug_error_minor_message augeas)) ;; elaboration of error message
@@ -40,8 +41,14 @@
 (define (aug-remove! a path)
   (let ((rc (_aug_rm a path)))
     (if (< rc 0)
-        (augeas-error a 'aug-remove path)
+        (augeas-error a 'aug-remove! path)
         rc)))
+
+(define (aug-match-count a path)
+  (let ((rc (_aug_match a path #f)))
+    (if (< rc 0)
+        (augeas-error a 'aug-match-count path))
+    rc))
 
 (define (augeas-error a loc . args)   ;; internal: raise augeas error
   (abort
