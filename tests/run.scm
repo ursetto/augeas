@@ -1,5 +1,7 @@
 (use test augeas)
 
+(define a (aug-init root: "../sandbox"))
+
 (test-group
  "exists"
  (test "existent" #t
@@ -17,6 +19,19 @@
  (test-error "get invalid path expression" (aug-get a "/files/etc/hosts/alias[")))
 
 (test-group
+ "match"
+ (test "match count hosts/*/ipaddr" 2
+       (aug-match-count a "/files/etc/hosts/*/ipaddr"))   ; hosts/1 and hosts/2
+ (test "match hosts/*/ipaddr"
+       '("/files/etc/hosts/1/ipaddr" "/files/etc/hosts/2/ipaddr")
+       (aug-match a "/files/etc/hosts/*/ipaddr"))
+ (test "match hosts"     ;; probably a redundant test
+       '("/files/etc/hosts/#comment[1]" "/files/etc/hosts/#comment[2]"
+         "/files/etc/hosts/1" "/files/etc/hosts/#comment[3]"
+         "/files/etc/hosts/#comment[4]" "/files/etc/hosts/2")
+       (aug-match a "/files/etc/hosts/*")))
+
+(test-group
  "set"
  ;; rm ipaddr node, or reload
  (test "assert nonexistent" #f
@@ -28,11 +43,6 @@
  (test-error "set! > 1 match"
              (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5")))
 
-(test-group
- "match"
- (test "match count" 2
-       (aug-match-count a "/files/etc/hosts/*/ipaddr"))   ; hosts/1 and hosts/2
- )
 
 (test-group
  "rm"

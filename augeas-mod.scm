@@ -1,5 +1,9 @@
 #> #include <augeas.h> <#
 
+(define-syntax begin0                 ; multiple values discarded
+  (syntax-rules () ((_ e0 e1 ...)
+                    (let ((tmp e0)) e1 ... tmp))))
+
 (define-record augeas ptr)
 (define-foreign-type augeas (c-pointer "augeas") (lambda (a) (augeas-ptr a)))
 
@@ -43,12 +47,24 @@
     (if (< rc 0)
         (augeas-error a 'aug-remove! path)
         rc)))
-
 (define (aug-match-count a path)
   (let ((rc (_aug_match a path #f)))
     (if (< rc 0)
-        (augeas-error a 'aug-match-count path))
-    rc))
+        (augeas-error a 'aug-match-count path)
+        rc)))
+(define (aug-match a path)
+  (define _aug_match_index
+    (foreign-lambda* c-string* (((c-pointer c-string) v) (int i))
+      "return(*(v+i));"))
+  (let-location ((v c-pointer))
+    (let ((rc (_aug_match a path #$v)))
+      (when (< rc 0)
+        (augeas-error a 'aug-match path))
+      (begin0
+          (list-tabulate rc (lambda (i) (_aug_match_index v i)))
+        (void)
+        ;; (free #$v)
+        ))))
 
 (define (augeas-error a loc . args)   ;; internal: raise augeas error
   (abort
