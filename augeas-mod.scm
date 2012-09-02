@@ -1,5 +1,7 @@
 #> #include <augeas.h> <#
 
+(use lolevel) ;; free
+
 (define-syntax begin0                 ; multiple values discarded
   (syntax-rules () ((_ e0 e1 ...)
                     (let ((tmp e0)) e1 ... tmp))))
@@ -55,16 +57,14 @@
 (define (aug-match a path)
   (define _aug_match_index
     (foreign-lambda* c-string* (((c-pointer c-string) v) (int i))
-      "return(*(v+i));"))
+      "return(v[i]);"))
   (let-location ((v c-pointer))
     (let ((rc (_aug_match a path #$v)))
       (when (< rc 0)
         (augeas-error a 'aug-match path))
       (begin0
           (list-tabulate rc (lambda (i) (_aug_match_index v i)))
-        (void)
-        ;; (free #$v)
-        ))))
+        (free v)))))  ;; free array; elts were freed by c-string*.
 
 (define (augeas-error a loc . args)   ;; internal: raise augeas error
   (abort
