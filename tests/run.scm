@@ -138,6 +138,19 @@
        (aug-match-pairs a "/files/etc/hosts/1/alias")
        ))
 
+(test-group
+ "move"
+ (test-assert "set /a/b"
+              (aug-set! a "/a/b" "foo"))
+ (test-assert "move /a/b /x/y"
+              (aug-move! a "/a/b" "/x/y"))
+ (test "verify dest exists" "foo"
+       (aug-get a "/x/y"))
+ (test "verify src does not exist" #f
+       (aug-exists? a "/a/b"))
+ (test-assert "delete dest"
+              (aug-remove! a "/x/y")))
+
 ;; Unfortunately we can't output to string, only stream, so we have to
 ;; write and read a file to check the output.
 (test-group

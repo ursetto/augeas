@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: init flags; save; mv; defvar; defnode; srun; rename; span (?); transform (?)
+;; todo: init flags; save; defvar; defnode; srun; rename; span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 ;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
@@ -41,6 +41,7 @@
 (define _aug_set (foreign-lambda int aug_set augeas c-string c-string))
 (define _aug_setm (foreign-lambda int aug_setm augeas c-string c-string c-string))
 (define _aug_rm (foreign-lambda int aug_rm augeas c-string))
+(define _aug_mv (foreign-lambda int aug_mv augeas c-string c-string))
 (define _aug_match (foreign-lambda int aug_match augeas c-string (c-pointer (c-pointer c-string))))
 (define _aug_insert (foreign-lambda int aug_insert augeas c-string c-string bool))
 (define _aug_print (foreign-lambda int aug_print augeas (c-pointer "FILE") c-string))
@@ -84,6 +85,11 @@
     (if (< rc 0)
         (augeas-error a 'aug-remove! path)
         rc)))
+(define (aug-move! a from to)
+  (let ((rc (_aug_mv a from to)))
+    (if (< rc 0)
+        (augeas-error a 'aug-move! from to)
+        (void))))
 (define (aug-match-count a path)
   (let ((rc (_aug_match a path #f)))
     (if (< rc 0)
