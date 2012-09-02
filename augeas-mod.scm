@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: init flags; load; save; defvar; defnode; srun; rename; span (?); transform (?)
+;; todo: init flags; print; load; save; defvar; defnode; srun; rename; span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 
@@ -41,6 +41,7 @@
 (define _aug_rm (foreign-lambda int aug_rm augeas c-string))
 (define _aug_match (foreign-lambda int aug_match augeas c-string (c-pointer (c-pointer c-string))))
 (define _aug_insert (foreign-lambda int aug_insert augeas c-string c-string bool))
+(define _aug_print (foreign-lambda int aug_print augeas (c-pointer "FILE") c-string))
 (define _aug_error (foreign-lambda int aug_error augeas))  ;; error code
 (define _aug_error_message (foreign-lambda c-string aug_error_message augeas))  ;; human-readable error
 (define _aug_error_minor_message (foreign-lambda c-string aug_error_minor_message augeas)) ;; elaboration of error message
@@ -101,6 +102,17 @@
     (when (< rc 0)
       (augeas-error a 'aug-insert! path label))
     (void)))
+
+(define stdout (foreign-value "stdout" c-pointer))
+(define (aug-print a path #!optional (port (current-output-port)))
+  ;; Not sure if we need to flush before and/or after
+  (define (port->file p)
+    (##sys#check-port p 'aug-print)
+    ((foreign-lambda* c-pointer ((scheme-object p)) "return(C_port_file(p));")
+     p))
+  (when (< (_aug_print a (port->file port) path) 0)
+    (augeas-error a 'aug-print path))
+  (void))
 
 (define (augeas-error a loc . args)   ;; internal: raise augeas error
   (abort
