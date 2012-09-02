@@ -103,13 +103,17 @@
       (augeas-error a 'aug-insert! path label))
     (void)))
 
-(define stdout (foreign-value "stdout" c-pointer))
+;; (define stdout (foreign-value "stdout" c-pointer))
+
+;; Print matching nodes at PATH to PORT; PORT must be associated with a file descriptor and
+;; must consequently be a stream port, not e.g. a string port.
 (define (aug-print a path #!optional (port (current-output-port)))
   ;; Not sure if we need to flush before and/or after
   (define (port->file p)
     (##sys#check-port p 'aug-print)
-    ((foreign-lambda* c-pointer ((scheme-object p)) "return(C_port_file(p));")
-     p))
+    (or ((foreign-lambda* c-pointer ((scheme-object p)) "return(C_port_file(p));")
+         p)
+        (error 'aug-print "not a stream port" port)))
   (when (< (_aug_print a (port->file port) path) 0)
     (augeas-error a 'aug-print path))
   (void))

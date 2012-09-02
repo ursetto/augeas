@@ -5,6 +5,9 @@
     ((_ code e0 e1 ...)
      (condition-case (begin e0 e1 ...)
                      ((exn augeas code) #t)))))
+(define-syntax begin0                 ; multiple values discarded
+  (syntax-rules () ((_ e0 e1 ...)
+                    (let ((tmp e0)) e1 ... tmp))))
 
 (define a (aug-init root: "../sandbox"))
 
@@ -111,3 +114,25 @@
               (aug-close a))
  (test-error "error: operation on closed handle"
              (aug-exists? a "/files/etc/hosts/1/ipaddr")))
+
+
+;; Unfortunately we can't output to string, only stream, so we have to
+;; write and read a file to check the output.
+(test-group
+ "print"
+ (test "print host node to a file and verify output"
+       ;; note that EOF heredoc eats the final newline
+       #<<EOF
+/files/etc/hosts/1
+/files/etc/hosts/1/ipaddr = "127.0.0.1"
+/files/etc/hosts/1/canonical = "localhost.localdomain"
+/files/etc/hosts/1/alias[1] = "localhost"
+/files/etc/hosts/1/alias[2] = "galia.watzmann.net"
+/files/etc/hosts/1/alias[3] = "galia"
+
+EOF
+       (let ((fn (create-temporary-file)))   ;; insecure
+         (call-with-output-file fn (lambda (p) (aug-print a "/files/etc/hosts/1" p)))
+         (begin0
+             (with-input-from-file fn read-string)
+           (delete-file fn)))))
