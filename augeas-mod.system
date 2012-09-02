@@ -1,7 +1,7 @@
 ;; -*- scheme -*-
 
 ;; Relies on pkg-config because augeas depends on libxml2 (even if you are not using it).
-;; export PKG_CONFIG_PATH=/Users/jim/local/lib/pkgconfig
+;; (setenv "PKG_CONFIG_PATH" "/Users/jim/local/lib/pkgconfig")
 
 (use posix srfi-13)
 
@@ -11,7 +11,7 @@
   (error "Unable to locate pkg-config"))
 (define augeas-version
   (with-input-from-pipe "pkg-config --modversion augeas" read-line))
-(when (eof-object? pkg-config-version)
+(when (eof-object? augeas-version)
   (error "Unable to obtain augeas version"))
 
 (define augeas-cflags
