@@ -52,7 +52,6 @@
        (expect-error mmatch
                      (aug-set! a "/files/etc/hosts//ipaddr" "192.168.5.5"))))
 
-
 (test-group
  "rm"
  (let ((p "/files/etc/hosts/01/ipaddr")
@@ -75,6 +74,32 @@
        (aug-remove! a "/files/etc/hosts/*/test"))
  (test "verify non-existence" '()
        (aug-match a "/files/etc/hosts/*/test")))
+
+(test-group
+ "insert"
+ (test "verify initial state"
+       '(("/files/etc/hosts/1/alias[1]" . "localhost")
+         ("/files/etc/hosts/1/alias[2]" . "galia.watzmann.net")
+         ("/files/etc/hosts/1/alias[3]" . "galia"))
+       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias")))
+ (test-assert "insert before"
+              (aug-insert! a "/files/etc/hosts/1/alias[2]" "alias" #t))
+ (test-assert "insert after"
+              (aug-insert! a "/files/etc/hosts/1/alias[3]" "alias"))
+ (test "verify inserted state"
+       '(("/files/etc/hosts/1/alias[1]" . "localhost")
+         ("/files/etc/hosts/1/alias[2]" . #f)
+         ("/files/etc/hosts/1/alias[3]" . "galia.watzmann.net")
+         ("/files/etc/hosts/1/alias[4]" . #f)
+         ("/files/etc/hosts/1/alias[5]" . "galia"))
+       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias")))
+ (aug-remove! a "/files/etc/hosts/1/alias[4]")
+ (aug-remove! a "/files/etc/hosts/1/alias[2]")
+ (test "verify state after removal"
+       '(("/files/etc/hosts/1/alias[1]" . "localhost")
+         ("/files/etc/hosts/1/alias[2]" . "galia.watzmann.net")
+         ("/files/etc/hosts/1/alias[3]" . "galia"))
+       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias"))))
 
 (test-group
  "close"
