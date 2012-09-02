@@ -1,4 +1,5 @@
-(use test augeas)
+(use augeas)
+(use test)
 
 (define-syntax expect-error    ;; return #t on augeas error code, else throw error
   (syntax-rules ()
@@ -8,6 +9,11 @@
 (define-syntax begin0                 ; multiple values discarded
   (syntax-rules () ((_ e0 e1 ...)
                     (let ((tmp e0)) e1 ... tmp))))
+
+(define (aug-match-pairs a path)
+  (map (lambda (x) (cons x (aug-get a x)))
+       (aug-match a path)))
+
 
 (define a (aug-init root: "../sandbox"))
 
@@ -64,16 +70,41 @@
    (test "rm" 1 (aug-remove! a "/files/etc/hosts/01/ipaddr"))
    (test "assert get missing" #f (aug-get a p))))
 
+(test-group
+ "load"
+ (test "verify initial state"
+       '(("/files/etc/hosts/1/ipaddr" . "127.0.0.1")
+         ("/files/etc/hosts/2/ipaddr" . "172.31.122.14"))
+       (aug-match-pairs a "/files/etc/hosts/*/ipaddr"))
+ (test "update ip addresses" #t
+       (begin
+         (aug-set! a "/files/etc/hosts/1/ipaddr" "192.168.2.4")
+         (aug-set! a "/files/etc/hosts/2/ipaddr" "192.168.2.4")
+         #t))
+ ;; We do the above instead of set-multiple! so we can do this before testing set-multiple!
+ ;; (test "set multiple" 2
+ ;;       (aug-set-multiple! a "/files/etc/hosts/*/ipaddr" #f "192.168.2.4"))
+ (test "verify updated state"
+       '(("/files/etc/hosts/1/ipaddr" . "192.168.2.4")
+         ("/files/etc/hosts/2/ipaddr" . "192.168.2.4"))
+       (aug-match-pairs a "/files/etc/hosts/*/ipaddr"))
+ (test-assert "load"
+              (aug-load! a))
+ (test "verify reverted state"      ;; well, part of it, anyway
+       '(("/files/etc/hosts/1/ipaddr" . "127.0.0.1")
+         ("/files/etc/hosts/2/ipaddr" . "172.31.122.14"))
+       (aug-match-pairs a "/files/etc/hosts/*/ipaddr")))
+
 ;; FIXME: match would be better here
 (test-group
  "set multiple, rm multiple"
- (test "set multiple" 3          ;; 3 because 1 and 2 are in file, and we added 01 above
+ (test "set multiple" 2
        (aug-set-multiple! a "/files/etc/hosts/*[label() != '#comment']"
                           "test" "foo"))
  (test "verify existence"
-       '("/files/etc/hosts/1/test" "/files/etc/hosts/2/test" "/files/etc/hosts/01/test")
+       '("/files/etc/hosts/1/test" "/files/etc/hosts/2/test")
        (aug-match a "/files/etc/hosts/*/test"))
- (test "rm multiple" 3
+ (test "rm multiple" 2
        (aug-remove! a "/files/etc/hosts/*/test"))
  (test "verify non-existence" '()
        (aug-match a "/files/etc/hosts/*/test")))
@@ -84,7 +115,7 @@
        '(("/files/etc/hosts/1/alias[1]" . "localhost")
          ("/files/etc/hosts/1/alias[2]" . "galia.watzmann.net")
          ("/files/etc/hosts/1/alias[3]" . "galia"))
-       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias")))
+       (aug-match-pairs a "/files/etc/hosts/1/alias"))
  (test-assert "insert before"
               (aug-insert! a "/files/etc/hosts/1/alias[2]" "alias" #t))
  (test-assert "insert after"
@@ -95,26 +126,17 @@
          ("/files/etc/hosts/1/alias[3]" . "galia.watzmann.net")
          ("/files/etc/hosts/1/alias[4]" . #f)
          ("/files/etc/hosts/1/alias[5]" . "galia"))
-       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias")))
+       (aug-match-pairs a "/files/etc/hosts/1/alias"))
+ ;; (aug-load! a)
+ ;; ;; or, instead of load!, we can do:
  (aug-remove! a "/files/etc/hosts/1/alias[4]")
  (aug-remove! a "/files/etc/hosts/1/alias[2]")
  (test "verify state after removal"
        '(("/files/etc/hosts/1/alias[1]" . "localhost")
          ("/files/etc/hosts/1/alias[2]" . "galia.watzmann.net")
          ("/files/etc/hosts/1/alias[3]" . "galia"))
-       (map (lambda (x) (cons x (aug-get a x))) (aug-match a "/files/etc/hosts/1/alias"))))
-
-(test-group
- "close"
- (test "verify handle is open" #t
-       (aug-exists? a "/files/etc/hosts/1/ipaddr"))
- (test-assert "close handle"             ;; return val unspecified, in practice void
-              (aug-close a))
- (test-assert "duplicate close ignored"  ;; return val unspecified, in practice void
-              (aug-close a))
- (test-error "error: operation on closed handle"
-             (aug-exists? a "/files/etc/hosts/1/ipaddr")))
-
+       (aug-match-pairs a "/files/etc/hosts/1/alias")
+       ))
 
 ;; Unfortunately we can't output to string, only stream, so we have to
 ;; write and read a file to check the output.
@@ -136,3 +158,20 @@ EOF
          (begin0
              (with-input-from-file fn read-string)
            (delete-file fn)))))
+
+
+;; Must come at end of tests; closes handle
+
+(test-group
+ "close"
+ (test "verify handle is open" #t
+       (aug-exists? a "/files/etc/hosts/1/ipaddr"))
+ (test-assert "close handle"             ;; return val unspecified, in practice void
+              (aug-close a))
+ (test-assert "duplicate close ignored"  ;; return val unspecified, in practice void
+              (aug-close a))
+ (test-error "error: operation on closed handle"
+             (aug-exists? a "/files/etc/hosts/1/ipaddr")))
+
+
+

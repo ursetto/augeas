@@ -29,6 +29,7 @@
   (compiled-scheme-file "augeas-mod.scm" options: augeas-options))
 (current-system augeas-mod)
 
-;; what is this for
-;; (set! ##sys#loaded-extensions
-;;      (cons "socket" ##sys#loaded-extensions))
+;; this is so (use augeas) is a no-op, for example, when testing
+;; otoh, it doesn't work
+(set! ##sys#loaded-extensions
+     (cons "augeas" ##sys#loaded-extensions))

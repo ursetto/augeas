@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: init flags; print; load; save; defvar; defnode; srun; rename; span (?); transform (?)
+;; todo: init flags; load; save; defvar; defnode; srun; rename; span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 
@@ -42,6 +42,7 @@
 (define _aug_match (foreign-lambda int aug_match augeas c-string (c-pointer (c-pointer c-string))))
 (define _aug_insert (foreign-lambda int aug_insert augeas c-string c-string bool))
 (define _aug_print (foreign-lambda int aug_print augeas (c-pointer "FILE") c-string))
+(define _aug_load (foreign-lambda int aug_load augeas))
 (define _aug_error (foreign-lambda int aug_error augeas))  ;; error code
 (define _aug_error_message (foreign-lambda c-string aug_error_message augeas))  ;; human-readable error
 (define _aug_error_minor_message (foreign-lambda c-string aug_error_minor_message augeas)) ;; elaboration of error message
@@ -102,6 +103,10 @@
     (when (< rc 0)
       (augeas-error a 'aug-insert! path label))
     (void)))
+(define (aug-load! a)
+  (when (< (_aug_load a) 0)
+    (augeas-error a 'aug-load!))
+  (void))
 
 ;; (define stdout (foreign-value "stdout" c-pointer))
 
