@@ -1,5 +1,7 @@
 #> #include <augeas.h> <#
 
+;; todo: return proper error enum symbol
+
 (use lolevel) ;; free
 
 (define-syntax begin0                 ; multiple values discarded

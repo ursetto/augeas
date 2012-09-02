@@ -59,13 +59,13 @@
  (test "set multiple" 3          ;; 3 because 1 and 2 are in file, and we added 01 above
        (aug-set-multiple! a "/files/etc/hosts/*[label() != '#comment']"
                           "test" "foo"))
- (test "verify one get" "foo"
-       (aug-get a "/files/etc/hosts/1/test"))
+ (test "verify existence"
+       '("/files/etc/hosts/1/test" "/files/etc/hosts/2/test" "/files/etc/hosts/01/test")
+       (aug-match a "/files/etc/hosts/*/test"))
  (test "rm multiple" 3
        (aug-remove! a "/files/etc/hosts/*/test"))
- (test "verify non-existent" #f
-       (aug-exists? a "/files/etc/hosts/1/test")))
-
+ (test "verify non-existence" '()
+       (aug-match a "/files/etc/hosts/*/test")))
 
 ;; Note: errors contain info, we should check against expected error type:
 
