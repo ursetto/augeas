@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: init flags; save; defvar; defnode; srun; rename; span (?); transform (?)
+;; todo: save; defvar; defnode; srun; rename (? -- needs unreleased 2012-08); span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 ;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
@@ -23,6 +23,21 @@
   ((cmdrun) AUG_ECMDRUN)        ;; Failed to execute command
   ((badarg) AUG_EBADARG)        ;; Invalid argument in function call
   ((label) AUG_ELABEL) )        ;; Invalid label
+
+(define-foreign-enum-type (augeas:initflag int 'unknown)
+  (initflag->int int->initflag)
+  ((none) AUG_NONE)
+  ((save-overwrite) AUG_NONE)
+  ((save-backup) AUG_SAVE_BACKUP)
+  ((save-newfile) AUG_SAVE_NEWFILE)
+  ((save-noop) AUG_SAVE_NOOP)
+  ((type-check) AUG_TYPE_CHECK)
+  ((no-stdinc) AUG_NO_STDINC)   ;; better name?  no-builtin-search-path?
+  ((no-load) AUG_NO_LOAD)
+  ((no-module-autoload) AUG_NO_MODL_AUTOLOAD)
+  ((enable-span) AUG_ENABLE_SPAN)
+  ;; ((no-error-close) AUG_NO_ERR_CLOSE)      ;; don't expose this--we should handle it transparently
+  )
 
 (use lolevel) ;; free
 
@@ -51,8 +66,8 @@
 (define _aug_error_minor_message (foreign-lambda c-string aug_error_minor_message augeas)) ;; elaboration of error message
 (define _aug_error_details (foreign-lambda c-string aug_error_details augeas))  ;; human-readable details
 
-(define (aug-init #!key root loadpath (flags 0))
-  (make-augeas (or (_aug_init root loadpath flags)
+(define (aug-init #!key root loadpath (flags 'none))
+  (make-augeas (or (_aug_init root loadpath (initflag->int flags))
                    (error 'aug-init "initialization failed"))))
 (define (aug-close a)        ;; safe to call this multiple times
   (when (augeas-ptr a)

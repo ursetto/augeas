@@ -14,8 +14,8 @@
   (map (lambda (x) (cons x (aug-get a x)))
        (aug-match a path)))
 
-
-(define a (aug-init root: "../sandbox"))
+(define root "../sandbox")
+(define a (aug-init root: root))
 
 (test-group
  "exists"
@@ -47,6 +47,50 @@
          "/files/etc/hosts/1" "/files/etc/hosts/#comment[3]"
          "/files/etc/hosts/#comment[4]" "/files/etc/hosts/2")
        (aug-match a "/files/etc/hosts/*")))
+
+(test-group
+ "init"
+ ;; Init DB and verify /augeas/save is set to proper flag.  We'll test that
+ ;; saving actually works later.
+ (define (test-cfg label flags)
+   (let ((a (aug-init flags: (append flags '(no-load no-module-autoload)))))
+     (begin0 (aug-get a (string-append "/augeas/" label))
+       (aug-close a))))
+ (test "save default" "overwrite"
+       (test-cfg "save" '()))
+ (test "save overwrite" "overwrite"
+       (test-cfg "save" '(save-overwrite)))
+ (test "save noop" "noop"
+       (test-cfg "save" '(save-noop)))
+ (test "save newfile" "newfile"
+       (test-cfg "save" '(save-newfile)))
+ (test "save backup" "backup"
+       (test-cfg "save" '(save-backup)))
+
+ (test-assert
+  "do not load files (no-load)"
+  (let ((a (aug-init root: root flags: '(no-load))))
+    (begin0
+        (and (= 0 (aug-match-count a "/files//*"))
+             (< 0 (aug-match-count a "/augeas/load//*")))
+      (aug-close a))))
+
+ (test-assert
+  "do not load files or modules (no-load + no-module-autoload)"
+  (let ((a (aug-init root: root flags: '(no-load no-module-autoload))))
+    (begin0
+        (and (= 0 (aug-match-count a "/files//*"))
+             (= 0 (aug-match-count a "/augeas/load//*")))
+      (aug-close a))))
+
+ (test "span disabled by default" "disable"
+       (test-cfg "span" '()))
+ (test "span enabled" "enable"
+       (test-cfg "span" '(enable-span)))
+
+ ;; Untested: no-stdinc, type-check
+
+ )
 
 (test-group
  "set"
