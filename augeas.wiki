@@ -20,6 +20,16 @@ For a short tutorial on Augeas, see the
 For information on the XPath expressions accepted by Augeas, see the
 [[http://augeas.net/page/Path_expressions|Augeas path expression docs]].
 
+== Requirements
+
+* Augeas (e.g. {{libaugeas-dev}})
+* {{pkg-config}}
+
+{{pkg-config}} is required to obtain the proper compilation flags for
+{{libxml2}}, which Augeas depends on (even though we do not use it!)
+Both augeas and libxml2 must be visible to {{pkg-config}}, which
+should normally be the case.
+
 == Error reporting
 
 All API calls raise errors of type {{(exn augeas errcode)}},
@@ -386,6 +396,7 @@ Example:
 * If {{aug-save!}} raises an error during saving, and you specified a saving mode,
   the previous mode won't be restored.
 * {{aug-print}} can only output to stream ports, not to string ports.
+* Only tested against Augeas 0.10.0 release.
 
 == About this egg
 
