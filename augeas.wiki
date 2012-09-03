@@ -1,0 +1,406 @@
+== augeas
+
+Bindings to the Augeas configuration API.
+
+[[toc:]]
+
+== Overview
+
+This egg provides an interface to the Augeas configuration API.  From
+the [[http://augeas.net/index.html|Augeas web page]]:
+
+* Augeas is a configuration editing tool.  It parses configuration files
+in their native formats and transforms them into a tree. Configuration
+changes are made by manipulating this tree and saving it back into
+native config files.
+
+For a short tutorial on Augeas, see the
+[[http://augeas.net/tour.html|Augeas quick tour]].
+
+For information on the XPath expressions accepted by Augeas, see the
+[[http://augeas.net/page/Path_expressions|Augeas path expression docs]].
+
+== Error reporting
+
+All API calls raise errors of type {{(exn augeas errcode)}},
+where ''errcode'' is one of the symbols:
+
+<table>
+<tr><td>  nomem</td><td>Out of memory</td></tr>
+<tr><td>  internal</td><td>Internal error (bug)</td></tr>
+<tr><td>  pathx</td><td>Invalid path expression</td></tr>
+<tr><td>  nomatch</td><td>No match for path expression</td></tr>
+<tr><td>  mmatch</td><td>Too many matches for path expression</td></tr>
+<tr><td>  syntax</td><td>Syntax error in lens file</td></tr>
+<tr><td>  nolens</td><td>Lens lookup failed</td></tr>
+<tr><td>  mxfm</td><td>Multiple transforms</td></tr>
+<tr><td>  nospan</td><td>No span for this node</td></tr>
+<tr><td>  mvdesc</td><td>Cannot move node into its descendant</td></tr>
+<tr><td>  cmdrun</td><td>Failed to execute command</td></tr>
+<tr><td>  badarg</td><td>Invalid argument in function call</td></tr>
+<tr><td>  label</td><td>Invalid label</td></tr>
+</table>
+
+Under the {{augeas}} condition are properties containing the integer
+error code, message, minor message elaborating on the main message (may be {{#f}}),
+and any details (may be {{#f}}).  For example:
+
+<enscript highlight=scheme>
+#;3> (aug-get a "/files/etc/hosts/alias[")
+Error: (aug-get) Invalid path expression: "/files/etc/hosts/alias["
+
+#;3> ,exn
+condition: (exn augeas pathx)
+ exn
+	location: aug-get
+	message: "Invalid path expression"
+	arguments: ("/files/etc/hosts/alias[")
+ augeas
+	code: 3
+	message: "Invalid path expression"
+	minor-message: "illegal string literal"
+	details: "/files/etc/hosts/alias[|=|"
+ pathx
+
+#;4> ((condition-property-accessor 'augeas 'minor-message) #3)
+"illegal string literal"
+</enscript>
+
+== Interface
+
+<procedure>(aug-init #!key root loadpath (flags '()))</procedure>
+
+Initializes the Augeas library and returns an opaque {{augeus}} record
+object which you pass to the other API calls.
+
+On failure, raises an error.  Unlike the other API calls, this is currently
+a generic exception, not an {{(exn augeas ...)}}.
+
+Optional keywords:
+
+; root : A string representing the filesystem root.  If omitted or {{#f}}, uses the environment variable {{AUGEAS_ROOT}}, or failing that, {{"/"}}.
+; loadpath : A colon-separated list of directories to search for modules.  May be omitted or {{#f}}.  This is in addition to the standard load path and the env var {{AUGEAS_LENS_LIB}}.
+; flags : A list of flags (see below).
+
+Flags is a list containing at most one of the {{save-}} flags:
+
+<table>
+<tr><td>save-overwrite</td><td>Overwrite the original file (the default behavior)</td></tr>
+<tr><td>save-backup</td><td>Copy the original file to ''file''.augsave, then overwrite the original file</td></tr>
+<tr><td>save-newfile</td><td>Save changes into ''file''.augnew; do not overwrite original file</td></tr>
+<tr><td>save-noop</td><td>Make save a no-op process, just record what would have changed into {{/augeas/events/saved}}</td></tr>
+</table>
+
+and any of these flags:
+
+<table>
+<tr><td>type-check</td><td>Typecheck lenses; very expensive</td></tr>
+<tr><td>no-stdinc</td><td>Do not search the builtin default directories for modules</td></tr>
+<tr><td>no-load</td><td>Do not load the tree of files</td></tr>
+<tr><td>no-module-autoload</td><td>Do not autoload modules from the search path</td></tr>
+<tr><td>enable-span</td><td>Load span positions for nodes; required if using {{aug-span}}</td></tr>
+</table>
+
+Examples:
+
+<enscript highlight=scheme>
+;; Init Augeas and load all recognized files from "/",
+;; along with all available modules (lenses).
+(define a (aug-init))
+
+;; Init Augeas and load all recognized files from ./root, 
+;; along with all available lenses.
+(define a (aug-init root: "./root"))
+
+;; Extremely quick startup, but you have to set up /augeas/load/* manually
+;; (see the Augeas docs).  Will copy original file with .augsave extension
+;; before modifying it.  Uses / as the root, assuming AUGEAS_ROOT is not set.
+(define a (aug-init flags: '(save-backup no-load no-module-autoload)))
+</enscript>
+
+<procedure>(aug-close a)</procedure>
+
+Closes {{augeas}} handle and relinquishes any resources.  It is safe to call
+this multiple times.  However, once the handle is closed, passing it
+to any other API call will raise an error.
+
+<procedure>(aug-get a path)</procedure>
+
+Get the string value of the node at PATH.  If the node exists but has
+no value, it returns {{#f}}.  If the node does not exist, it also
+returns {{#f}}.
+
+Raises an error if there is more than one node matching PATH, or if
+PATH is not a legal path expression.
+
+<enscript highlight=scheme>
+(aug-get a "/files/etc/hosts/1/ipaddr")
+ ;=> "127.0.0.1"
+(aug-get a "/files/etc/hosts/1/foo")
+ ;=> #f
+</enscript>
+
+<procedure>(aug-exists? a path)</procedure>
+
+Returns a boolean indicating whether a node exists at {{PATH}}.
+Unlike {{get}}, this can distinguish between nodes with value {{#f}}
+and non-existent nodes.
+
+<procedure>(aug-set! a path val)</procedure>
+
+Sets the value associated with PATH to VALUE (a string).  The node is created a
+PATH if it does not exist; otherwise its value is updated.  Raises an
+error if PATH matches more than one node.
+
+<enscript highlight=scheme>
+(aug-set! a "/files/etc/hosts/1/ipaddr" "33.34.35.36")
+</enscript>
+
+<procedure>(aug-set-multiple! a base sub value)</procedure>
+
+Sets the value of multiple nodes in one operation.  Finds or creates a
+node matching SUB by interpreting SUB as a path expression relative to
+each node matching BASE.  SUB may be {{#f}}, in which case all the
+nodes matching BASE will be modified.
+
+Returns the integer number of modified nodes on success, or raises
+an error on failure.
+
+Example:
+<enscript highlight=scheme>
+;; Add node test="foo" to all host entries that are not comments.
+(aug-match a "/files/etc/hosts/*[label() != '#comment']")
+ ;=> ("/files/etc/hosts/1" "/files/etc/hosts/2")
+(aug-print a "/files/etc/hosts/*/test")
+(aug-set-multiple! a "/files/etc/hosts/*[label() != '#comment']"
+                     "test" "foo")
+(aug-print a "/files/etc/hosts/*/test")
+ ;; /files/etc/hosts/1/test = "foo"
+ ;; /files/etc/hosts/2/test = "foo"
+</enscript>
+
+<procedure>(aug-remove! a path)</procedure>
+
+Remove all nodes that match PATH, along with all their children.
+Returns the number of entries removed, or raises an error on
+failure.
+
+<procedure>(aug-move! a src dst)</procedure>
+
+Move the node SRC to DST. SRC must match exactly one node in the
+tree. DST must either match exactly one node in the tree, or may not
+exist yet. If DST exists already, it and all its descendants are
+deleted. If DST does not exist yet, it and all its missing ancestors are
+created.
+
+Note that the node SRC always becomes the node DST: when you move {{/a/b}}
+to {{/x}}, the node {{/a/b}} is now called {{/x}}, no matter whether {{/x}} existed
+initially or not.
+
+Returns an unspecified value on success; raises an error if the move fails.
+
+<procedure>(aug-match a path)</procedure>
+<procedure>(aug-match-count a path)</procedure>
+
+{{aug-match}} returns a list of all single node paths matching the XPath
+expression PATH.
+
+{{aug-match-count}} is like {{aug-match}} but returns the number of
+matches.  This is more efficient than {{(length (aug-match ...))}}.
+
+For information on the XPath expressions accepted by Augeas, see the
+[[http://augeas.net/page/Path_expressions|Augeas path expression docs]].
+
+Example:
+<enscript highlight=scheme>
+(aug-match a "/files/etc/hosts/*/ipaddr")
+ ;=> ("/files/etc/hosts/1/ipaddr" "/files/etc/hosts/2/ipaddr")
+</enscript>
+
+<procedure>(aug-insert! a path label #!optional before?)</procedure>
+
+Creates a new sibling LABEL for PATH by inserting into the tree just
+before PATH if {{before?}} is {{#t}}, or just after PATH if {{before?}}
+is {{#f}} (the default).  The new node's value is null.
+
+PATH must match exactly one existing node in the tree, and LABEL must be
+a label, i.e. not contain a {{/}}, {{*}} or end with a bracketed index
+{{[N]}}.
+
+Returns an unspecified value on success; raises an error if the insertion fails.
+
+Unfortunately, there is no way to set the value at the same time, nor to
+capture the inserted node into a variable.
+
+Example:
+
+<enscript highlight=scheme>
+(aug-print a "/files/etc/hosts/1/alias")
+ ;; /files/etc/hosts/1/alias[1] = "localhost"
+ ;; /files/etc/hosts/1/alias[2] = "galia.watzmann.net"
+ ;; /files/etc/hosts/1/alias[3] = "galia"
+(aug-insert! a "/files/etc/hosts/1/alias[2]" "alias" #t)
+(aug-insert! a "/files/etc/hosts/1/alias[3]" "alias")
+(aug-print a "/files/etc/hosts/1/alias")
+ ;; /files/etc/hosts/1/alias[1] = "localhost"
+ ;; /files/etc/hosts/1/alias[2]
+ ;; /files/etc/hosts/1/alias[3] = "galia.watzmann.net"
+ ;; /files/etc/hosts/1/alias[4]
+ ;; /files/etc/hosts/1/alias[5] = "galia"
+</enscript>
+
+<procedure>(aug-load! a)</procedure>
+
+Loads files into the tree.  This is done by default in {{aug-init}}
+unless you provide it the {{no-load}} flag.
+
+Raises an error on failure, or returns an unspecified value on success.
+Note that "success" includes the case where some files could not be
+loaded due to parse error etc.  Details of such files can be found in
+the nodeset {{/augeas//error}}.
+
+Which files to load and what lenses to use on them is specified under
+{{/augeas/load}} in the tree; each entry {{/augeas/load/NAME}}
+specifies a ''transform'', by having itself exactly one child ''lens''
+and any number of children labelled {{incl}} and {{excl}}. The value
+of NAME has no meaning.
+
+The ''lens'' grandchild of {{/augeas/load}} specifies which lens to use, and
+can either be the fully qualified name of a lens ''Module.lens'' or
+''@Module''. The latter form means that the lens from the transform marked
+for autoloading in MODULE should be used.
+
+The 'incl' and 'excl' grandchildren of {{/augeas/load}} indicate which files
+to transform. Their value are used as glob patterns. Any file that
+matches at least one 'incl' pattern and no 'excl' pattern is
+transformed. The order of 'incl' and 'excl' entries is irrelevant.
+
+When {{aug-load!}} is first called, it populates {{/augeas/load}} with
+the transforms marked for autoloading in all the modules it finds.
+Before loading any files, {{aug-load!}} will remove everything
+underneath {{/augeas/files}} (file metadata) and {{/files}} (file
+data), regardless of whether any entries have been modified or not.
+
+Note: despite the fact that file metadata under {{/augeas/files}} is
+cleared on load, a previously-loaded file will only be reloaded if its
+data in {{/files}} has been modified in memory, ''or'' if its
+modification time on disk ({{mtime}}) has changed.  The {{mtime}} has
+a granularity of one second.  Therefore, if the file changes within
+one second after it was loaded or saved, it won't be re-read.  If necessary, you can
+force a reload by clearing the {{mtime}} with something similar to:
+
+<enscript highlight=scheme>
+(aug-set! a "/augeas/files/etc/hosts/mtime" #f)
+</enscript>
+
+<procedure>(aug-save! a #!optional mode)</procedure>
+
+Writes all pending changes to disk.  Raises an error on failure,
+returns an unspecified value on success.
+
+The optional save mode may be any of:
+
+<table>
+<tr><td>{{#f}} or omitted</td><td>Use the save mode passed to aug-init!</td></tr>
+<tr><td>overwrite</td><td>Overwrite the original file</td></tr>
+<tr><td>backup</td><td>Copy the original file to ''file''.augsave, then overwrite the original file</td></tr>
+<tr><td>newfile</td><td>Save changes into ''file''.augnew; do not overwrite original file</td></tr>
+<tr><td>noop</td><td>Make save a no-op process, just record what would have changed into {{/augeas/events/saved}}</td></tr>
+</table>
+
+<procedure>(aug-defvar a name expr)</procedure>
+
+Defines a variable NAME whose value is the result of evaluating EXPR. If
+a variable NAME already exists, its name will be replaced with the
+result of evaluating EXPR.  Context will not be applied to EXPR.
+
+If EXPR is NULL, the variable NAME will be removed if it is defined.
+
+Path variables can be used in path expressions later on by prefixing
+them with {{$}}.
+
+On success, returns 0 if EXPR evaluates to anything other than a nodeset, 
+or the number of nodes if EXPR evaluates to a nodeset.  On failure,
+raises an error.
+
+Example:
+<enscript highlight=scheme>
+(aug-defvar a "hosts" "/files/etc/hosts")    ;=> 1
+(aug-get a "$hosts/1/ipaddr")                ;=> "127.0.0.1"
+(aug-defvar a "hosts" #f)                    ;=> 0
+(aug-get a "$hosts/1/ipaddr")                ;=> undefined variable (exn augeas pathx)
+</enscript>
+
+<procedure>(aug-defnode a name expr value)</procedure>
+
+If the node at EXPR does not exist, creates a node at EXPR with
+value VALUE, storing the node in variable NAME.  This is like using
+{{defvar}} followed by {{aug-set!}}.
+
+If the node or nodes at EXPR do exist, stores the corresponding
+nodeset in variable NAME.  The node values are not modified and VALUE
+is ignored.
+
+Returns two values: the integer number of nodes in the nodeset, and
+a boolean indicating whether a node was created or not.
+
+A typical use is with the XPath predicate {{[last()+1]}} to
+append a node to a list of nodes that all have the same name,
+and keep a reference to the new node.
+
+Example:
+
+<enscript highlight=scheme>
+;; First create a new node with a value and assign it to a variable;
+;; then assign the same node to a second variable (value is ignored).
+(aug-defnode a "myalias" "/files/etc/hosts/1/alias[last()+1]" "crichton")
+ ;=> values: 1 #t
+(aug-defnode a "myalias1" "/files/etc/hosts/1/alias[last()]" "crichton2")
+ ;=> values: 1 #f
+(aug-get a "$myalias") 
+ ;=> "crichton"
+(aug-get a "$myalias1")
+ ;=> "crichton"
+</enscript>
+
+<procedure>(aug-print a path #!optional (port (current-output-port)))</procedure>
+
+Print each node matching PATH and its descendants to PORT.
+Limitation: PORT must be a stream port (such as a file or terminal);
+you can't write to a string port.
+
+Example:
+<enscript highlight=scheme>
+(aug-print a "/files/etc/hosts/1")
+ ;; /files/etc/hosts/1
+ ;; /files/etc/hosts/1/ipaddr = "127.0.0.1"
+ ;; /files/etc/hosts/1/canonical = "localhost.localdomain"
+ ;; /files/etc/hosts/1/alias[1] = "localhost"
+</enscript>
+
+== Bugs and limitations
+
+* Unimplemented calls: {{span}}, {{srun}}, {{transform}}, {{to_xml}}. {{rename}}
+  is not implemented because it's only available in ''git'', not in
+  the Augeas 0.10.0 release.
+* If {{aug-save!}} raises an error during saving, and you specified a saving mode,
+  the previous mode won't be restored.
+* {{aug-print}} can only output to stream ports, not to string ports.
+
+== About this egg
+
+=== Author
+
+[[http://ursetto.com|Jim Ursetto]]
+
+=== Acknowledgements
+
+Some documentation is cribbed from the [[http://augeas.net/docs/api.html|Augeas API docs]].
+
+=== Version history
+
+; 0.1 : Initial release
+
+=== License
+
+Copyright (c) 2012, Ursetto Consulting, Inc.  MIT license.
