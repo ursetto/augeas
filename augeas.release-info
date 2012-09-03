@@ -1,0 +1,4 @@
+(repo git "git://github.com/ursetto/{egg-name}.git")
+(uri targz "https://github.com/ursetto/{egg-name}/tarball/{egg-release}")
+(release "0.1.0")
+
