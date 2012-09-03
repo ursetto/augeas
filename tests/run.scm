@@ -214,6 +214,31 @@
  ;; we do not test definition error (bad path, probably)
  )
 
+
+(test-group
+ "defnode"
+ (test "defnode $myalias, appending new node with last()+1"
+       '(1 #t)
+       (receive (aug-defnode a "myalias" "/files/etc/hosts/1/alias[last()+1]"
+                             "crichton.xorinia.dim")))
+;; does not set here, as node exists.  only sets if creates
+ (test "defnode $myalias1 as same node as $myalias, using last()"
+       '(1 #f)
+       (receive (aug-defnode a "myalias1" "/files/etc/hosts/1/alias[last()]"
+                             "crichton2.xorinia.dim")))
+ (test "get $myalias (original value, defnode does not modify existing nodes)"
+       "crichton.xorinia.dim" (aug-get a "$myalias"))
+ (test "get $myalias1 (same as $myalias)" "crichton.xorinia.dim"
+       (aug-get a "$myalias1"))
+ (test "remove $myalias" 1
+       (aug-remove! a "$myalias"))
+ (test "verify $myalias removed" #f (aug-get a "$myalias"))
+ (test "verify $myalias1 removed" #f (aug-get a "$myalias1")) 
+ (test "undefine nodes" 0
+       (+
+        (aug-defvar a "myalias" #f)
+        (aug-defvar a "myalias1" #f))))
+
 ;; Unfortunately we can't output to string, only stream, so we have to
 ;; write and read a file to check the output.
 (test-group

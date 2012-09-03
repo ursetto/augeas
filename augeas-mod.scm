@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: save; defnode; srun; rename (? -- needs unreleased 2012-08); span (?); transform (?)
+;; todo: save; srun; span (?); transform (?); rename (? -- needs unreleased 2012-08)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 ;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
@@ -137,6 +137,12 @@
     (when (< rc 0)
       (augeas-error a 'aug-defvar name expr))
     rc))
+(define (aug-defnode a name expr value)
+  (let-location ((created bool))
+    (let ((rc (_aug_defnode a name expr value #$created)))
+      (when (< rc 0)
+        (augeas-error a 'aug-defnode name expr value))
+      (values rc created))))
 
 ;; (define stdout (foreign-value "stdout" c-pointer))
 
