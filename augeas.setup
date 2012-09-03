@@ -1,0 +1,11 @@
+;; -*- scheme -*-
+
+(include "pkg-config-augeas.scm")
+
+(compile -s -O2 -d0 "augeas.scm" ,augeas-options -J)
+(compile -s -d0 augeas.import.scm)
+
+(install-extension
+  'augeas
+   '("augeas.so" "augeas.import.so")
+    '((version "0.1.0")))

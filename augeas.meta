@@ -1,0 +1,7 @@
+(
+(synopsis "Augeas configuration API bindings")
+(author "Jim Ursetto")
+(needs foreigners)
+(license "MIT")
+(category parsing)
+)

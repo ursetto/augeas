@@ -8,6 +8,7 @@
 
 (use foreigners)
 (use lolevel) ;; free
+(use srfi-1)  ;; list-tabulate
 
 (define-foreign-enum-type (augeus:errcode int 'unknown)
   (errcode->int int->errcode)

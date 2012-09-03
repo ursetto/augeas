@@ -1,5 +1,6 @@
 (use augeas)
 (use test)
+(use files)
 
 (define-syntax expect-error    ;; return #t on augeas error code, else throw error
   (syntax-rules ()
@@ -14,7 +15,8 @@
   (map (lambda (x) (cons x (aug-get a x)))
        (aug-match a path)))
 
-(define root "tests/root")
+(define root "root")
+;; (define root "tests/root")                     ;; if testing with system egg from main dir 
 (define (pn fn)
   (make-pathname root fn))
 (define (delete-files . files)
