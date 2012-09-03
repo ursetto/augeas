@@ -274,6 +274,10 @@ EOF
              (with-input-from-file fn read-string)
            (delete-file fn)))))
 
+;; Library note: aug_load will reload a file if it's been modified in memory
+;;               OR if its mtime (to the second) differs from the last load or save time.
+;;               Therefore if you save a file, modify it externally, and load it
+;;               all within one second, the changes will not be picked up.  (as of 0.10.0)
 (test-group
  "save"
  (define (file-compare fn1 fn2)
@@ -283,25 +287,39 @@ EOF
  (test "baseline: verify pristine and sullied files differ" #f
        (file-compare (pn "etc/hosts.pristine") (pn "etc/hosts.sullied")))
 
- (test-group
-  "overwrite"
-  (known-file-state!)  ;; pristine, angel!
-  (test "baseline: verify current and sullied files differ" #f       ;; overkill but hey
-        (file-compare (pn "etc/hosts") (pn "etc/hosts.sullied")))
-  (test "baseline: verify current and pristine files identical" #t
-        (file-compare (pn "etc/hosts") (pn "etc/hosts.pristine")))
-  (test-assert "load"
-               (aug-load! a))
-  (test "verify original file ipaddr"
-        "127.0.0.1"
-        (aug-get a "/files/etc/hosts/1/ipaddr"))
-  (test-assert "set new ipaddr"
-               (aug-set! a "/files/etc/hosts/1/ipaddr" "33.34.35.36"))
-  (test-assert "update file"
-               (aug-save! a))
-  (test-assert "file updated correctly"
-               (file-compare (pn "etc/hosts") (pn "etc/hosts.sullied"))))
- )
+ (define (test-save-mode mode new-file-name #!optional backup-file-name)
+   (test-group
+    (symbol->string (or mode 'default))
+    (known-file-state!) ;; pristine, angel!
+    (test "baseline: verify current and sullied files differ" #f ;; overkill but hey
+          (file-compare (pn "etc/hosts") (pn "etc/hosts.sullied")))
+    (test "baseline: verify current and pristine files identical" #t
+          (file-compare (pn "etc/hosts") (pn "etc/hosts.pristine")))
+    (test-assert "load"
+                 (begin
+                   ;; trick augeas into reloading externally modified file
+                   (aug-set! a "/augeas/files/etc/hosts/mtime" #f)       ;; "0" works too
+                   (aug-load! a)))
+    (test "verify original file ipaddr"
+          "127.0.0.1"
+          (aug-get a "/files/etc/hosts/1/ipaddr"))
+    (test-assert "set new ipaddr"
+                 (aug-set! a "/files/etc/hosts/1/ipaddr" "33.34.35.36"))
+    (test-assert "update file"
+                 (if mode
+                     (aug-save! a mode)
+                     (aug-save! a)))        ;; explicitly test default, even though #f allowed
+    (test-assert "verify current and sullied files now identical"
+                 (file-compare (pn new-file-name) (pn "etc/hosts.sullied")))
+    (when backup-file-name
+      (test-assert "verify backup and pristine files still identical"
+                   (file-compare (pn backup-file-name) (pn "etc/hosts.pristine"))))
+    ))
+ (test-save-mode 'overwrite "etc/hosts")
+ (test-save-mode 'backup "etc/hosts" "etc/hosts.augsave")
+ (test-save-mode 'newfile "etc/hosts.augnew" "etc/hosts")
+ (test-save-mode #f "etc/hosts")
+ (known-file-state!))
 
 ;; Must come at end of tests; closes handle
 

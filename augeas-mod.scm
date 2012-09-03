@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: save; srun; span (?); transform (?); rename (? -- needs unreleased 2012-08)
+;; todo: srun; span (?); transform (?); rename (? -- needs unreleased 2012-08)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 ;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
@@ -132,10 +132,20 @@
   (when (< (_aug_load a) 0)
     (augeas-error a 'aug-load!))
   (void))
-(define (aug-save! a)                 ;; FIXME: Add optional saving behavior
-  (when (< (_aug_save a) 0)
-    (augeas-error a 'aug-save!))
-  (void))
+(define (aug-save! a #!optional mode)
+  (let ((old-mode (and mode (aug-get a "/augeas/save")))
+        (mode (if (symbol? mode) (symbol->string mode) mode)))
+    (when (and old-mode
+               (not (string=? old-mode mode)))
+      (aug-set! a "/augeas/save" mode))
+    (when (< (_aug_save a) 0)
+      (augeas-error a 'aug-save!))
+    ;; FIXME: if save errors out, we don't restore mode.  Use handle-exceptions,
+    ;; but be careful as the restore could fail too
+    (when (and old-mode
+               (not (string=? old-mode mode)))
+      (aug-set! a "/augeas/save" old-mode))
+    (void)))
 (define (aug-defvar a name expr)
   (let ((rc (_aug_defvar a name expr)))
     (when (< rc 0)

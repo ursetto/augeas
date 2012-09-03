@@ -1,6 +1,13 @@
+tests/root/etc/hosts
+*.augsave
+*.augnew
+
+\#*
+\.#*
 *~
 *.o
 *.so
 .svn
 *.import.*
 *.c
+*.swp
