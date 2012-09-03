@@ -14,7 +14,21 @@
   (map (lambda (x) (cons x (aug-get a x)))
        (aug-match a path)))
 
-(define root "../sandbox")
+(define root "tests/root")
+(define (pn fn)
+  (make-pathname root fn))
+(define (delete-files . files)
+  (for-each (lambda (fn)
+              (when (file-exists? fn) (delete-file fn)))
+            files))
+;; get to known file state
+(define (known-file-state!)
+  (file-copy (pn "etc/hosts.pristine")
+             (pn "etc/hosts")
+             #t)
+  (delete-files (pn "etc/hosts.augsave") (pn "etc/hosts.augnew")))
+
+(known-file-state!)
 (define a (aug-init root: root))
 
 (test-group
@@ -234,7 +248,7 @@
        (aug-remove! a "$myalias"))
  (test "verify $myalias removed" #f (aug-get a "$myalias"))
  (test "verify $myalias1 removed" #f (aug-get a "$myalias1")) 
- (test "undefine nodes" 0
+ (test "undefine node vars" 0
        (+
         (aug-defvar a "myalias" #f)
         (aug-defvar a "myalias1" #f))))
@@ -260,6 +274,34 @@ EOF
              (with-input-from-file fn read-string)
            (delete-file fn)))))
 
+(test-group
+ "save"
+ (define (file-compare fn1 fn2)
+   (string=? (with-input-from-file fn1 read-string)
+             (with-input-from-file fn2 read-string)))
+ 
+ (test "baseline: verify pristine and sullied files differ" #f
+       (file-compare (pn "etc/hosts.pristine") (pn "etc/hosts.sullied")))
+
+ (test-group
+  "overwrite"
+  (known-file-state!)  ;; pristine, angel!
+  (test "baseline: verify current and sullied files differ" #f       ;; overkill but hey
+        (file-compare (pn "etc/hosts") (pn "etc/hosts.sullied")))
+  (test "baseline: verify current and pristine files identical" #t
+        (file-compare (pn "etc/hosts") (pn "etc/hosts.pristine")))
+  (test-assert "load"
+               (aug-load! a))
+  (test "verify original file ipaddr"
+        "127.0.0.1"
+        (aug-get a "/files/etc/hosts/1/ipaddr"))
+  (test-assert "set new ipaddr"
+               (aug-set! a "/files/etc/hosts/1/ipaddr" "33.34.35.36"))
+  (test-assert "update file"
+               (aug-save! a))
+  (test-assert "file updated correctly"
+               (file-compare (pn "etc/hosts") (pn "etc/hosts.sullied"))))
+ )
 
 ;; Must come at end of tests; closes handle
 

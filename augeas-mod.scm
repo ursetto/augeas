@@ -7,6 +7,7 @@
 ;;       for string ports for both aug_print and aug_srun.  has been available since 0.2.0 (2008-06)
 
 (use foreigners)
+(use lolevel) ;; free
 
 (define-foreign-enum-type (augeus:errcode int 'unknown)
   (errcode->int int->errcode)
@@ -39,8 +40,6 @@
   ;; ((no-error-close) AUG_NO_ERR_CLOSE)      ;; don't expose this--we should handle it transparently
   )
 
-(use lolevel) ;; free
-
 (define-syntax begin0                 ; multiple values discarded
   (syntax-rules () ((_ e0 e1 ...)
                     (let ((tmp e0)) e1 ... tmp))))
@@ -61,6 +60,7 @@
 (define _aug_insert (foreign-lambda int aug_insert augeas c-string c-string bool))
 (define _aug_print (foreign-lambda int aug_print augeas (c-pointer "FILE") c-string))
 (define _aug_load (foreign-lambda int aug_load augeas))
+(define _aug_save (foreign-lambda int aug_save augeas))
 (define _aug_defvar (foreign-lambda int aug_defvar augeas c-string c-string))
 (define _aug_defnode (foreign-lambda int aug_defnode augeas c-string c-string c-string (c-pointer bool)))
 (define _aug_error (foreign-lambda int aug_error augeas))  ;; error code
@@ -131,6 +131,10 @@
 (define (aug-load! a)
   (when (< (_aug_load a) 0)
     (augeas-error a 'aug-load!))
+  (void))
+(define (aug-save! a)                 ;; FIXME: Add optional saving behavior
+  (when (< (_aug_save a) 0)
+    (augeas-error a 'aug-save!))
   (void))
 (define (aug-defvar a name expr)
   (let ((rc (_aug_defvar a name expr)))
