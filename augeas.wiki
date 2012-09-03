@@ -413,6 +413,10 @@ Some documentation is cribbed from the [[http://augeas.net/docs/api.html|Augeas 
 
 ; 0.1 : Initial release
 
+=== Repository
+
+[[https://github.com/ursetto/augeas]]
+
 === License
 
 Copyright (c) 2012, Ursetto Consulting, Inc.  MIT license.
