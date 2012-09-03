@@ -24,7 +24,9 @@
   ((mvdesc) AUG_EMVDESC)        ;; Cannot move node into its descendant
   ((cmdrun) AUG_ECMDRUN)        ;; Failed to execute command
   ((badarg) AUG_EBADARG)        ;; Invalid argument in function call
-  ((label) AUG_ELABEL) )        ;; Invalid label
+  ;; not available in 0.10.0 release
+  ;; ((label) AUG_ELABEL)       ;; Invalid label
+  )
 
 (define-foreign-enum-type (augeas:initflag int 'unknown)
   (initflag->int int->initflag)
