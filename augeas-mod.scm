@@ -1,6 +1,6 @@
 #> #include <augeas.h> <#
 
-;; todo: save; defvar; defnode; srun; rename (? -- needs unreleased 2012-08); span (?); transform (?)
+;; todo: save; defnode; srun; rename (? -- needs unreleased 2012-08); span (?); transform (?)
 ;; todo: init using AUG_NO_ERR_CLOSE (requires 0.10.0).  Easy, but I have no way to
 ;;       trigger a failure for testing.
 ;; todo: use init/close_memstream from augeas internal.h to write FD output to memory
@@ -61,6 +61,8 @@
 (define _aug_insert (foreign-lambda int aug_insert augeas c-string c-string bool))
 (define _aug_print (foreign-lambda int aug_print augeas (c-pointer "FILE") c-string))
 (define _aug_load (foreign-lambda int aug_load augeas))
+(define _aug_defvar (foreign-lambda int aug_defvar augeas c-string c-string))
+(define _aug_defnode (foreign-lambda int aug_defnode augeas c-string c-string c-string (c-pointer bool)))
 (define _aug_error (foreign-lambda int aug_error augeas))  ;; error code
 (define _aug_error_message (foreign-lambda c-string aug_error_message augeas))  ;; human-readable error
 (define _aug_error_minor_message (foreign-lambda c-string aug_error_minor_message augeas)) ;; elaboration of error message
@@ -130,6 +132,11 @@
   (when (< (_aug_load a) 0)
     (augeas-error a 'aug-load!))
   (void))
+(define (aug-defvar a name expr)
+  (let ((rc (_aug_defvar a name expr)))
+    (when (< rc 0)
+      (augeas-error a 'aug-defvar name expr))
+    rc))
 
 ;; (define stdout (foreign-value "stdout" c-pointer))
 

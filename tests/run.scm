@@ -195,6 +195,25 @@
  (test-assert "delete dest"
               (aug-remove! a "/x/y")))
 
+(test-group
+ "defvar"
+ (test "$hosts is undefined" #t
+       (expect-error pathx (aug-get a "$hosts/1/ipaddr")))
+ (test "defvar $hosts" 1
+       (aug-defvar a "hosts" "/files/etc/hosts"))
+ (test "get $hosts/1/ipaddr" "127.0.0.1"
+       (aug-get a "$hosts/1/ipaddr"))
+ (test "un-defvar $hosts" 0
+       (aug-defvar a "hosts" #f))
+ (test "$hosts is undefined again" #t
+       (expect-error pathx (aug-get a "$hosts/1/ipaddr")))
+ (test "defvar $ipaddrs" 2  ;; confirm nodeset works
+       (aug-defvar a "ipaddrs" "/files/etc/hosts//ipaddr"))
+ (test "undefvar $ipaddrs" 0
+       (aug-defvar a "ipaddrs" #f)) 
+ ;; we do not test definition error (bad path, probably)
+ )
+
 ;; Unfortunately we can't output to string, only stream, so we have to
 ;; write and read a file to check the output.
 (test-group
