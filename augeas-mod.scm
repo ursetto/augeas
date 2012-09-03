@@ -136,7 +136,8 @@
     (augeas-error a 'aug-load!))
   (void))
 (define (aug-save! a #!optional mode)
-  (unless (memq mode '(overwrite backup newfile noop))
+  (when (and mode
+             (not (memq mode '(overwrite backup newfile noop))))
     (error 'aug-save! "Illegal save mode" mode))
   (let ((old-mode (and mode (aug-get a "/augeas/save")))
         (mode (if (symbol? mode) (symbol->string mode) mode)))
